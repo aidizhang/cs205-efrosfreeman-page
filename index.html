@@ -45,6 +45,7 @@
 <p>Here is a video about our work:</p>
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/aONJ4fhUXsg" frameborder="0" allowfullscreen></iframe>
+<br><br>
 
 <h2>
 <a id="designer-templates" class="anchor" href="#designer-templates" aria-hidden="true"><span class="octicon octicon-link"></span></a>Background and Motivation</h2>
@@ -72,16 +73,16 @@
 <p>There are 3 phases of the Efros-Freeman algorithm in which we can exploit parallelism:</p>
 
 <ul>
-<li>Searching for candidate patches: 
-
+<li>Searching for candidate patches:<br>
+<br>
 This is essentially an “embarrassingly parallel” problem since we are not writing to shared memory, and threads never access the same part of shared memory. Finding distances of each candidate patch, which are predetermined for any given input sample, with a reference patch can be done independently of the others, which means we were able to assign a thread to each chunksize batch of candidate patch. We varied the number of threads assigned to all candidate patches to determine the optimal parameter for maximum speedup.
 </li>
-<li>Parallelizing dynamic programming: 
-
+<li>Parallelizing dynamic programming:<br>
+<br>
 Filling in the dynamic programming table has potential for improvements via parallelism. However, since our overlap sizes are usually not that large, scheduling overhead might override any potential benefits from parallelism.
 </li>
-<li>Insertion of patches into the generated texture: 
-
+<li>Insertion of patches into the generated texture:<br>
+<br>
 This comprises the brunt of the work of the algorithm, and is not easy to parallelize because overlapping areas are being read from and written to, hence each patch depends on previous patches having been finalized. The way this problem might be approached is using locks with condition variables to schedule threads to insert patches such that it is ensured that the current patch’s dependent patches to the up and left have been inserted, as shown below.
 
 <div style="text-align:center;"><img src="images/parallelscan.jpg" alt="parallel scan order" align="center"/></div>
@@ -101,7 +102,7 @@ This comprises the brunt of the work of the algorithm, and is not easy to parall
 
 <p>Another optimization that we tried out is to achieve load balancing on the first phase of parallelism as mentioned above. Without load balancing, we see a modest decrease in time as we increase number of threads up to 8, followed by a sharp spike in computational time when using 16 threads. This is non surprising as scheduling overhead for 16 threads is not ideal for a quad-core machine like the one we used to run the code. Load balancing, however, performed even worse overall - also unsurprisng since work is being pretty uniformly distributed across threads and there is never a real need for work stealing.</p>
 
-<div style="text-align:center;"><img src="images/plot_2.jpg" alt="plot 2"/></div>
+<div style="text-align:center;"><img src="images/plot_2.png" alt="plot 2"/></div>
 
 <p>In theory, the speedup from the third phase of parallelism (insertion of patches into the generated texture) converges to min(M,N)/2 where M and N are the width and height of the generated texture measured in number of blocks, as N goes to infinity. Whereas each block would have to be processed in sequential order in the serial version, resulting in M*N blocks of work, our parallel version only requires each row or column to be 2 blocks "behind" its previous row or column.</p>
 
