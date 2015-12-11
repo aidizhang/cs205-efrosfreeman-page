@@ -60,7 +60,7 @@
 
 <p>At each step of selecting and insertion of block, we search the input sample for blocks that satisfy overlap constraints within some error tolerance. This means that we randomly choose a candidate patch with a sufficiently low overlap error. A higher error tolerance means that overlapping patches might not be as well fitted together whereas a lower error tolerance increases the chances of growing garbage, hence this is a tradeoff. Overlap errors were calculated using L2 norm of a pixel-wise vector across the number channels (3 for RGB-colored images).</p>
 
-<img src="images/patchbasedinsert.jpg" alt="patch-based image synthesis" align="center"/>
+<div style="text-align:center;"><img src="images/patchbasedinsert.jpg" alt="patch-based image synthesis"/></div>
 
 <h2>
 <a id="sub-nav-questions" class="anchor" href="#sub-nav-questions" aria-hidden="true"><span class="octicon octicon-link"></span></a>Parallelism</h2>
