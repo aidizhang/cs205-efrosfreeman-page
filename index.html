@@ -47,18 +47,22 @@
 <iframe width="560" height="315" src="https://www.youtube.com/embed/aONJ4fhUXsg" frameborder="0" allowfullscreen></iframe>
 
 <h2>
-<a id="designer-templates" class="anchor" href="#designer-templates" aria-hidden="true"><span class="octicon octicon-link"></span></a>Motivation</h2>
+<a id="designer-templates" class="anchor" href="#designer-templates" aria-hidden="true"><span class="octicon octicon-link"></span></a>Background and Motivation</h2>
 
-<p>The Efros-Freeman image quilting algorithm is designed to solve the texture synthesis problem, which takes an input image and generates an arbitrarily large image of the same texture. This generated images can be used in a variety of contexts, most obviously with computer generated graphics for television and movie media. This is better than just simply tiling input texture because we can handle stochastic textures, and because the output textures are not identical to the human eye.</p>
+<p>Based on the paper by <a href="http://www.eecs.berkeley.edu/Research/Projects/CS/vision/papers/efros-siggraph01.pdf">Efros and Freeman</a>, the Efros-Freeman image quilting algorithm is designed to solve the texture synthesis problem, which takes an input image and generates an arbitrarily large image of the same texture.</p>
+
+<p>This generated images can be used in a variety of contexts, most obviously with computer generated graphics for television and movie media. Furthermore, current trends in virtual reality and computer vision applications have results in high demand for such synthetically generated larger images. Image quilting has emerged as one of the better techniques for such purposes - better than simply tiling input texture for example since we want to generate textures that are similar but not identical to the human eye.</p>
 
 <h2>
 <a id="what-will-code-look-like" class="anchor" href="#what-will-code-look-like" aria-hidden="true"><span class="octicon octicon-link"></span></a>Serial Design</h2>
 
 <p>The original Efros-Freeman algorithm works by going through our target image in raster scan order in steps of one block, as shown below.</p> 
 
-<img src="images/rasterscan.jpg" alt="raster scan order for serial implementation" align="center"/>
+<div style="text-align:center;"><img src="images/rasterscan.jpg" alt="raster scan order for serial implementation"/></div>
 
-<p>At each step of selecting and insertion of block, we search the input sample for blocks that satisfy overlap constraints within some error tolerance. This means that we randomly choose a candidate patch with a sufficiently low overlap error. A higher error tolerance means that overlapping patches might not be as well fitted together whereas a lower error tolerance increases the chances of growing garbage, hence this is a tradeoff. Overlap errors were calculated using L2 norm of a pixel-wise vector across the number channels (3 for RGB-colored images).</p>
+<p>At each step of selecting and insertion of block, we search the input sample for blocks that satisfy overlap constraints within some error tolerance. This means that we randomly choose a candidate patch with a sufficiently low overlap error. Overlap errors were calculated using L2 norm of a pixel-wise vector across the number channels (3 for RGB-colored images).</p>
+
+<p>A higher error tolerance means that overlapping patches might not be as well fitted together whereas a lower error tolerance increases the chances of growing garbage, hence this is a tradeoff. </p>
 
 <div style="text-align:center;"><img src="images/patchbasedinsert.jpg" alt="patch-based image synthesis"/></div>
 
@@ -68,20 +72,41 @@
 <p>There are 3 phases of the Efros-Freeman algorithm in which we can exploit parallelism:</p>
 
 <ul>
-<li>Searching for candidate patches: This is essentially an “embarrassingly parallel” problem since we are not writing to shared memory, and threads never access the same part of shared memory. 
+<li>Searching for candidate patches: 
+
+This is essentially an “embarrassingly parallel” problem since we are not writing to shared memory, and threads never access the same part of shared memory. Finding distances of each candidate patch, which are predetermined for any given input sample, with a reference patch can be done independently of the others, which means we were able to assign a thread to each chunksize batch of candidate patch. We varied the number of threads assigned to all candidate patches to determine the optimal parameter for maximum speedup.
 </li>
-<li>Parallelizing dynamic programming: Filling in the dynamic programming table has potential for improvements via parallelism. However, since our overlap sizes are usually not that large, scheduling overhead might override any potential benefits from parallelism. The theory behind this though …
+<li>Parallelizing dynamic programming: 
+
+Filling in the dynamic programming table has potential for improvements via parallelism. However, since our overlap sizes are usually not that large, scheduling overhead might override any potential benefits from parallelism.
 </li>
-<li>Insertion of patches into the generated texture: This comprises the brunt of the work of the algorithm, and is not easy to parallelize because overlapping areas are being read from and written to, hence each patch depends on previous patches having been finalized. The way this problem might be approached is using locks with condition variables to schedule threads to insert patches such that it is ensured that the current patch’s dependent patches to the up and left have been inserted.
-<img src="images/parallelscan.jpg" alt="parallel scan order" align="center"/>
+<li>Insertion of patches into the generated texture: 
+
+This comprises the brunt of the work of the algorithm, and is not easy to parallelize because overlapping areas are being read from and written to, hence each patch depends on previous patches having been finalized. The way this problem might be approached is using locks with condition variables to schedule threads to insert patches such that it is ensured that the current patch’s dependent patches to the up and left have been inserted, as shown below.
+
+<div style="text-align:center;"><img src="images/parallelscan.jpg" alt="parallel scan order" align="center"/></div>
+
+
 </li>
 </ul>
 
 <h2>
 <a id="whos-this-matt-graham" class="anchor" href="#whos-this-matt-graham" aria-hidden="true"><span class="octicon octicon-link"></span></a>Performance</h2>
 
+<p>To quantify our results, we compare performances between serial Cython and parallel Cython in the following visualization.</p>
+
+<div style="text-align:center;"><img src="images/plot_1.png" alt="plot 1"/></div>
+
+<p>For each piece of code, we calculated the time it took to run 10 consecutive trials of image quilting on one image, with 100 patches in generated texture. We timed all components of the image quilting process, from generating candidate patches, calculating distance of reference patches from candidate patches, assigning events and threads for scheduling of threads (only for parallel version), calculating minimum cut boundary and stitching relevant parts of candidate patch and old board, to actually inserting into generated texture. We can see significant improvements of parallel performance over serial, in which parallelism increases as number of target patches increases. After a threshold number of target patches however, parallelism levels off to roughly 3.1 times serial, possibly due to the fact that scheduling overhead increases as more threads are required to be coordinated and more locks with condition variables are acquired and released.</p>
+
+<p>Another optimization that we tried out is to achieve load balancing on the first phase of parallelism as mentioned above. Without load balancing, we see a modest decrease in time as we increase number of threads up to 8, followed by a sharp spike in computational time when using 16 threads. This is non surprising as scheduling overhead for 16 threads is not ideal for a quad-core machine like the one we used to run the code. Load balancing, however, performed even worse overall - also unsurprisng since work is being pretty uniformly distributed across threads and there is never a real need for work stealing.</p>
+
+<div style="text-align:center;"><img src="images/plot_2.jpg" alt="plot 2"/></div>
+
+<p>In theory, the speedup from the third phase of parallelism (insertion of patches into the generated texture) converges to min(M,N)/2 where M and N are the width and height of the generated texture measured in number of blocks, as N goes to infinity. Whereas each block would have to be processed in sequential order in the serial version, resulting in M*N blocks of work, our parallel version only requires each row or column to be 2 blocks "behind" its previous row or column.</p>
+
 <h2>
-<a id="designer-templates" class="anchor" href="#designer-templates" aria-hidden="true"><span class="octicon octicon-link"></span></a>Results</h2>
+<a id="designer-templates" class="anchor" href="#designer-templates" aria-hidden="true"><span class="octicon octicon-link"></span></a>Results and Discussion</h2>
 
 <p>The serial implementation of the algorithm gives us surprisingly good results for a wide range of textures. Here are some examples:
 
