@@ -66,16 +66,18 @@
 <p>A higher error tolerance means that overlapping patches might not be as well fitted together whereas a lower error tolerance increases the chances of growing garbage, hence this is a tradeoff. </p>
 
 <div style="text-align:center;"><img src="images/patchbasedinsert.jpg" alt="patch-based image synthesis"/></div>
+<br>
 
 <h2>
 <a id="sub-nav-questions" class="anchor" href="#sub-nav-questions" aria-hidden="true"><span class="octicon octicon-link"></span></a>Parallelism</h2>
 
 <p>There are 3 phases of the Efros-Freeman algorithm in which we can exploit parallelism:</p>
-
+<br>
 <ul>
 <li>Searching for candidate patches:<br>
 <br>
 This is essentially an “embarrassingly parallel” problem since we are not writing to shared memory, and threads never access the same part of shared memory. Finding distances of each candidate patch, which are predetermined for any given input sample, with a reference patch can be done independently of the others, which means we were able to assign a thread to each chunksize batch of candidate patch. We varied the number of threads assigned to all candidate patches to determine the optimal parameter for maximum speedup.
+<br>
 </li>
 <li>Parallelizing dynamic programming:<br>
 <br>
@@ -84,7 +86,7 @@ Filling in the dynamic programming table has potential for improvements via para
 <li>Insertion of patches into the generated texture:<br>
 <br>
 This comprises the brunt of the work of the algorithm, and is not easy to parallelize because overlapping areas are being read from and written to, hence each patch depends on previous patches having been finalized. The way this problem might be approached is using locks with condition variables to schedule threads to insert patches such that it is ensured that the current patch’s dependent patches to the up and left have been inserted, as shown below.
-
+<br>
 <div style="text-align:center;"><img src="images/parallelscan.jpg" alt="parallel scan order" align="center"/></div>
 
 
@@ -107,15 +109,21 @@ This comprises the brunt of the work of the algorithm, and is not easy to parall
 <p>In theory, the speedup from the third phase of parallelism (insertion of patches into the generated texture) converges to min(M,N)/2 where M and N are the width and height of the generated texture measured in number of blocks, as N goes to infinity. Whereas each block would have to be processed in sequential order in the serial version, resulting in M*N blocks of work, our parallel version only requires each row or column to be 2 blocks "behind" its previous row or column.</p>
 
 <h2>
-<a id="designer-templates" class="anchor" href="#designer-templates" aria-hidden="true"><span class="octicon octicon-link"></span></a>Results and Discussion</h2>
+<a id="designer-templates" class="anchor" href="#designer-templates" aria-hidden="true"><span class="octicon octicon-link"></span></a>Results</h2>
 
-<p>The serial implementation of the algorithm gives us surprisingly good results for a wide range of textures. Here are some examples:
+<p>The serial implementation of the algorithm gives us surprisingly good results for a wide range of textures. Here are some examples:</p>
 
-In some of them, for example the pebbles on this slide, the jagged edge is clearly visible.</p>
+<div style="text-align:center;"><img src="images/basket.png" alt="basket"/></div>
+<div style="text-align:center;"><img src="images/grass.png" alt="grass"/></div>
+<div style="text-align:center;"><img src="images/toast.png" alt="toast"/></div>
+<div style="text-align:center;"><img src="images/text.png" alt="text"/></div>
 
 <h2>
-<a id="designer-templates" class="anchor" href="#designer-templates" aria-hidden="true"><span class="octicon octicon-link"></span></a>Further Work and Remarks</h2>
+<a id="designer-templates" class="anchor" href="#designer-templates" aria-hidden="true"><span class="octicon octicon-link"></span></a>Remarks and Further Work</h2>
 
+<p>In conclusion, through this final project, we learnt quite a bit about image processing and synthesis algorithms, as well as how to effectively parallelize them. We also learnt the extent to which code could apply to different images, and saw how tweaks in the algorithm or certain parameters caused different results in generated texture. In addition, we got a much better grasp of using Cython, especially with regards to its allocation of memory with memoryviews and when and where to grab or release the GIL.</p>
+<br>
+<p>Even though we achieved what we had set out to do and achieved significant results, there is definitely further follow-up work to explore. First and foremost, we could apply a very similar algorithm to the problem of texture transfer, which as explained in the original Efros and Freeman paper, is a way to render any image with an input sample texture. Furthermore, we could also increase the scope of analysis by introducing a wider range of dimensions, both in image sample and generated texture in terms of blocksize, which might present more opportunity for higher speedups due to parallelism. We might also want to use a wider range of cores to measure relative performance and efficiency.</p>
 
 
       </section>
