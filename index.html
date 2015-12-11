@@ -54,7 +54,13 @@
 <h2>
 <a id="what-will-code-look-like" class="anchor" href="#what-will-code-look-like" aria-hidden="true"><span class="octicon octicon-link"></span></a>Serial Design</h2>
 
-<p>The original Efros-Freeman algorithm works by going through our target image in raster scan order in steps of one block. For every block, we search the input sample for blocks that satisfy overlap constraints within some error tolerance. This means that we randomly choose a candidate patch with a sufficiently low overlap error. A higher error tolerance means that overlapping patches might not be as well fitted together whereas a lower error tolerance increases the chances of growing garbage, hence this is a tradeoff. Overlap errors were calculated using L2 norm of a pixel-wise vector across the number channels (3 for RGB-colored images).</p>
+<p>The original Efros-Freeman algorithm works by going through our target image in raster scan order in steps of one block, as shown below.</p> 
+
+<img src="images/rasterscan" alt="raster scan order for serial implementation"/>
+
+<p>At each step of selecting and insertion of block, we search the input sample for blocks that satisfy overlap constraints within some error tolerance. This means that we randomly choose a candidate patch with a sufficiently low overlap error. A higher error tolerance means that overlapping patches might not be as well fitted together whereas a lower error tolerance increases the chances of growing garbage, hence this is a tradeoff. Overlap errors were calculated using L2 norm of a pixel-wise vector across the number channels (3 for RGB-colored images).</p>
+
+<img src="images/patchbased" alt="patch-based image synthesis"/>
 
 <h2>
 <a id="sub-nav-questions" class="anchor" href="#sub-nav-questions" aria-hidden="true"><span class="octicon octicon-link"></span></a>Parallelism</h2>
@@ -67,6 +73,7 @@
 <li>Parallelizing dynamic programming: Filling in the dynamic programming table has potential for improvements via parallelism. However, since our overlap sizes are usually not that large, scheduling overhead might override any potential benefits from parallelism. The theory behind this though …
 </li>
 <li>Insertion of patches into the generated texture: This comprises the brunt of the work of the algorithm, and is not easy to parallelize because overlapping areas are being read from and written to, hence each patch depends on previous patches having been finalized. The way this problem might be approached is using locks with condition variables to schedule threads to insert patches such that it is ensured that the current patch’s dependent patches to the up and left have been inserted.
+<img src="images/parallelscan" alt="parallel scan order"/>
 </li>
 </ul>
 
