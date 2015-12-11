@@ -74,12 +74,12 @@ Subsequently, we need to compute the minimum cost path along the areas of overla
 <div style="text-align:center;"><img src="images/dpbacktrace.jpg" alt="dynamic programming backtrace"/></div>
 
 We finally insert cut patch into generated texture and repeat until entire area is filled.
+<br>
 
 <h2>
 <a id="sub-nav-questions" class="anchor" href="#sub-nav-questions" aria-hidden="true"><span class="octicon octicon-link"></span></a>Parallelism</h2>
 
 <p>There are 3 phases of the Efros-Freeman algorithm in which we can exploit parallelism:</p>
-<br>
 <ul>
 <li><b>Searching for candidate patches:</b><br>
 This is essentially an “embarrassingly parallel” problem since we are not writing to shared memory, and threads never access the same part of shared memory. Finding distances of each candidate patch, which are predetermined for any given input sample, with a reference patch can be done independently of the others, which means we were able to assign a thread to each chunksize batch of candidate patch. We varied the number of threads assigned to all candidate patches to determine the optimal parameter for maximum speedup.
@@ -124,6 +124,7 @@ This comprises the brunt of the work of the algorithm, and is not easy to parall
 <div style="text-align:center;"><img src="images/grass.jpg" alt="grass"/></div>
 <div style="text-align:center;"><img src="images/toast.jpg" alt="toast"/></div>
 <div style="text-align:center;"><img src="images/text.jpg" alt="text"/></div>
+<br>
 
 <h2>
 <a id="designer-templates" class="anchor" href="#designer-templates" aria-hidden="true"><span class="octicon octicon-link"></span></a>Remarks and Further Work</h2>
