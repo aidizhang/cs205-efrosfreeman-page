@@ -61,12 +61,19 @@
 
 <div style="text-align:center;"><img src="images/rasterscan.jpg" alt="raster scan order for serial implementation"/></div>
 
-<p>At each step of selecting and insertion of block, we search the input sample for blocks that satisfy overlap constraints within some error tolerance. This means that we randomly choose a candidate patch with a sufficiently low overlap error. Overlap errors were calculated using L2 norm of a pixel-wise vector across the number channels (3 for RGB-colored images).</p>
+<p>At each step of selecting the block, we search the input sample for blocks that satisfy overlap constraints within some error tolerance. This means that we randomly choose a candidate patch with a sufficiently low overlap error. Overlap errors were calculated using L2 norm of a pixel-wise vector across the number channels (3 for RGB-colored images).</p>
 
 <p>A higher error tolerance means that overlapping patches might not be as well fitted together whereas a lower error tolerance increases the chances of growing garbage, hence this is a tradeoff. </p>
 
 <div style="text-align:center;"><img src="images/patchbasedinsert.jpg" alt="patch-based image synthesis"/></div>
 <br>
+
+Subsequently, we need to compute the minimum cost path along the areas of overlap between the chosen candidate patch and what is already on the generated texture. We conduct dynamic programming to trace minimum cost path along either vertical or horizontal axes depending on direction of overlap, and make that the boundary of the new block. The DP process is shown below:
+
+<div style="text-align:center;"><img src="images/dp.jpg" alt="dynamic programming"/></div>
+<div style="text-align:center;"><img src="images/dpbacktrace.jpg" alt="dynamic programming backtrace"/></div>
+
+We finally insert cut patch into generated texture and repeat until entire area is filled.
 
 <h2>
 <a id="sub-nav-questions" class="anchor" href="#sub-nav-questions" aria-hidden="true"><span class="octicon octicon-link"></span></a>Parallelism</h2>
@@ -77,12 +84,14 @@
 <li><b>Searching for candidate patches:</b><br>
 This is essentially an “embarrassingly parallel” problem since we are not writing to shared memory, and threads never access the same part of shared memory. Finding distances of each candidate patch, which are predetermined for any given input sample, with a reference patch can be done independently of the others, which means we were able to assign a thread to each chunksize batch of candidate patch. We varied the number of threads assigned to all candidate patches to determine the optimal parameter for maximum speedup.
 <br>
+<br>
 </li>
 <li><b>Parallelizing dynamic programming:</b><br>
 Filling in the dynamic programming table has potential for improvements via parallelism. However, since our overlap sizes are usually not that large, scheduling overhead might override any potential benefits from parallelism.
+<br>
+<br>
 </li>
 <li><b>Insertion of patches into the generated texture:</b><br>
-<br>
 This comprises the brunt of the work of the algorithm, and is not easy to parallelize because overlapping areas are being read from and written to, hence each patch depends on previous patches having been finalized. The way this problem might be approached is using locks with condition variables to schedule threads to insert patches such that it is ensured that the current patch’s dependent patches to the up and left have been inserted, as shown below.
 <br>
 <div style="text-align:center;"><img src="images/parallelscan.jpg" alt="parallel scan order" align="center"/></div>
